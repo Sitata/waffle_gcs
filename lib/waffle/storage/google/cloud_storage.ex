@@ -19,6 +19,7 @@ defmodule Waffle.Storage.Google.CloudStorage do
   alias GoogleApi.Storage.V1.Connection
   alias GoogleApi.Storage.V1.Api.Objects
   alias GoogleApi.Storage.V1.Model.Object
+  alias Waffle.Definition.Versioning
   alias Waffle.Storage.Google.Util
   alias Waffle.Types
 
@@ -67,9 +68,12 @@ defmodule Waffle.Storage.Google.CloudStorage do
   behavior of `Waffle.Storage.Google.Url`.
   """
   @spec url(Types.definition(), Types.version(), Types.meta(), Keyword.t()) :: String.t()
-  def url(definition, version, meta, opts \\ []) do
+  def url(definition, version, {file, scope} = file_and_scope, opts \\ []) do
+    # ensure correct filename is set during reads
+    file = Map.put(file, :file_name, Versioning.resolve_file_name(definition, version, file_and_scope))
+
     signer = Util.option(opts, :url_builder, Waffle.Storage.Google.UrlV2)
-    signer.build(definition, version, meta, opts)
+    signer.build(definition, version, {file, scope}, opts)
   end
 
   @doc """
