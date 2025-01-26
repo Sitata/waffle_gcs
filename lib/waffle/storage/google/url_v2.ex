@@ -79,8 +79,6 @@ defmodule Waffle.Storage.Google.UrlV2 do
 
   @spec build_signed_url(Types.definition(), String.t(), Keyword.t()) :: String.t()
   defp build_signed_url(definition, path, options) do
-    {:ok, client_id} = Goth.Config.get(:client_email)
-
     expiration = System.os_time(:second) + expiry(options)
 
     signature =
@@ -91,7 +89,7 @@ defmodule Waffle.Storage.Google.UrlV2 do
 
     base_url = build_url(definition, path)
 
-    "#{base_url}?GoogleAccessId=#{client_id}&Expires=#{expiration}&Signature=#{signature}"
+    "#{base_url}?GoogleAccessId=#{client_email()}&Expires=#{expiration}&Signature=#{signature}"
   end
 
   @spec build_path(Types.definition(), String.t()) :: String.t()
@@ -122,8 +120,7 @@ defmodule Waffle.Storage.Google.UrlV2 do
 
   @spec sign_request(String.t()) :: String.t()
   defp sign_request(request) do
-    {:ok, pem_bin} = Goth.Config.get("private_key")
-    [pem_key_data] = :public_key.pem_decode(pem_bin)
+    [pem_key_data] = :public_key.pem_decode(private_key())
     otp_release = System.otp_release() |> String.to_integer()
 
     rsa_key =
@@ -140,5 +137,15 @@ defmodule Waffle.Storage.Google.UrlV2 do
     |> :public_key.sign(:sha256, rsa_key)
     |> Base.encode64()
     |> URI.encode_www_form()
+  end
+
+  defp private_key() do
+    token_store = Application.fetch_env!(:waffle, :token_fetcher)
+    token_store.get_private_key()
+  end
+
+  defp client_email() do
+    token_store = Application.fetch_env!(:waffle, :token_fetcher)
+    token_store.get_email()
   end
 end
